@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const QRCodeGenerator = () => {
   const [url, setUrl] = useState("");
-  const [qrCode, setQrCode] = useState("");
-  const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
   const [size, setSize] = useState(5);
+  const [error, setError] = useState("");
+
+  const navigate = useNavigate();
 
   const handleGenerate = async (e) => {
     e.preventDefault();
@@ -20,31 +21,25 @@ const QRCodeGenerator = () => {
         url,
         size,
       });
-      setQrCode(response.data.imageUrl);
-      setError("");
-      setCopied(false);
+
+      const qrData = {
+        imageUrl: response.data.imageUrl,
+        url,
+        timestamp: new Date().toLocaleString(),
+      };
+
+      // Save to sessionStorage
+      sessionStorage.setItem("latestQR", JSON.stringify(qrData));
+
+      // Also push to history
+      const history = JSON.parse(sessionStorage.getItem("qrHistory")) || [];
+      sessionStorage.setItem("qrHistory", JSON.stringify([qrData, ...history]));
+
+      navigate("/result");
     } catch (err) {
       console.error("QR generation failed:", err);
       setError("Failed to generate QR. Try again.");
     }
-  };
-
-  const handleDownload = () => {
-    if (!qrCode) return;
-    const downloadUrl = qrCode.replace("/upload/", "/upload/fl_attachment/");
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = "smartqr-code.png";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(qrCode).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
   };
 
   return (
@@ -69,19 +64,6 @@ const QRCodeGenerator = () => {
       </form>
 
       {error && <p className="error">{error}</p>}
-
-      {qrCode && (
-        <div className="qr-output">
-          <h2>Your QR Code:</h2>
-          <img src={qrCode} alt="Generated QR Code" />
-          <div className="button-group">
-            <button onClick={handleDownload}>Download</button>
-            <button onClick={copyToClipboard}>
-              {copied ? "Copied!" : "Copy URL"}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
